@@ -23,19 +23,22 @@ var err2 = &Error{
 	Data:    map[string]interface{}{"foo": "bar"},
 }
 
-var h = lrpchttp.HTTPHandler(Codec{}, lrpc.ServeMux{
-	"Echo": lrpc.HandlerFunc(func(c lrpc.Call) interface{} {
+var h = lrpchttp.HTTPHandler(Codec{}, lrpc.ServeMux{}.
+	HandleFunc("Echo", func(c lrpc.Call) interface{} {
 		var i interface{}
 		c.UnmarshalArgs(&i)
 		return i
-	}),
-	"Error1": lrpc.HandlerFunc(func(lrpc.Call) interface{} {
+	}).
+	HandleFunc("Error1", func(lrpc.Call) interface{} {
 		return errors.New("some error")
-	}),
-	"Error2": lrpc.HandlerFunc(func(lrpc.Call) interface{} {
+	}).
+	HandleFunc("Error2", func(lrpc.Call) interface{} {
 		return err2
 	}),
-})
+)
+
+var mux = lrpc.ServeMux{}.
+	HandleFunc("foo", func(c lrpc.Call) interface{} { return nil })
 
 func TestJSON2Codec(t *T) {
 	rand := rand.New(rand.NewSource(time.Now().UnixNano()))

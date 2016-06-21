@@ -130,4 +130,17 @@ func (sm ServeMux) ServeRPC(c Call) interface{} {
 	return ErrMethodNotFound
 }
 
+// Handle registers the given Handler for the given method name. It returns the
+// ServeMux so multiple calls can be easily chained
+func (sm ServeMux) Handle(method string, h Handler) ServeMux {
+	sm[method] = h
+	return sm
+}
+
+// HandleFunc is like Handle, but it takes in a function which will be
+// automatically wrapped with HandlerFunc
+func (sm ServeMux) HandleFunc(method string, fn func(Call) interface{}) ServeMux {
+	return sm.Handle(method, HandlerFunc(fn))
+}
+
 // TODO some way of creating copies of a Call
