@@ -6,7 +6,6 @@ package lrpc
 import (
 	"errors"
 	"fmt"
-	"io"
 	"reflect"
 
 	"golang.org/x/net/context"
@@ -36,15 +35,6 @@ type Call interface {
 	// arguments into it using the underlying codec. This should only be called
 	// once on any Call instance.
 	UnmarshalArgs(interface{}) error
-
-	// MarshalResponse takes in an interface pointer and writes it to the given
-	// io.Writer. This should only be called once on any Call instance.
-	//
-	// This is generally only used by the underlying transport for a Call, it's
-	// not usually necessary to call this from a Handler
-	//
-	// TODO still not convinced this needs to be here
-	MarshalResponse(io.Writer, interface{}) error
 }
 
 // Handler describes a type which can process incoming rpc requests and return a
@@ -71,9 +61,6 @@ func (hf HandlerFunc) ServeRPC(c Call) interface{} {
 //		Args: map[string]string{"foo":"bar"},
 //	})
 //
-// The MarshalResponse method on DirectCall will panic, since it should never
-// actually be used. The Context method will return a new background context if
-// none is set in the struct.
 type DirectCall struct {
 	Context context.Context
 	Method  string
@@ -109,12 +96,6 @@ func (dc DirectCall) UnmarshalArgs(i interface{}) error {
 	}
 	iV.Set(thisV)
 	return nil
-}
-
-// MarshalResponse implements the Call interface. In reality, it panics since it
-// should never be called.
-func (dc DirectCall) MarshalResponse(io.Writer, interface{}) error {
-	panic("MarshalResponse should never be called on a DirectCall")
 }
 
 // ServeMux wraps multiple method name/Handler pairs and implements a Handler

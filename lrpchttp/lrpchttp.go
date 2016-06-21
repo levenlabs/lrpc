@@ -14,9 +14,20 @@ import (
 )
 
 // Codec describes a type which can translate an incoming http request into an
-// rpc request
+// rpc request, and send back the response for the request
 type Codec interface {
-	NewCall(http.ResponseWriter, *http.Request) (lrpc.Call, error)
+	// Called when the request first comes in, translate the http information
+	// into an lrpc.Call which can be then used in an lrpc.Handler. The returned
+	// Call should use the given Context as its underlying Context, although it
+	// may add more context layers on top of it.
+	NewCall(context.Context, http.ResponseWriter, *http.Request) (lrpc.Call, error)
+
+	// Used to marshal and send back a response for the lrpc.Call. If an error
+	// is returned it will be sent back as a 500 response.
+	//
+	// Note for implementors: ContextResponseWriter can be used to retrieve the
+	// underlying http.ResponseWriter for the Call
+	Respond(lrpc.Call, interface{}) error
 }
 
 // HTTPHandler takes a Codec which can translate http requests to rpc calls, and
@@ -25,18 +36,22 @@ type Codec interface {
 //
 // If there is an error calling NewCall on the Codec that error will be returned
 // as a 400
-func HTTPHandler(c Codec, h lrpc.Handler) http.Handler {
+func HTTPHandler(codec Codec, h lrpc.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		c, err := c.NewCall(w, r)
+		// TODO use request's context once 1.7 is stable
+		ctx := context.Background()
+		ctx = context.WithValue(ctx, contextKeyRequest, r)
+		ctx = context.WithValue(ctx, contextKeyResponseWriter, w)
+
+		c, err := codec.NewCall(ctx, w, r)
 		if err != nil {
 			http.Error(w, err.Error(), 400)
 			return
 		}
 
-		c = wrapCall(w, r, c)
-
 		res := h.ServeRPC(c)
-		if err := c.MarshalResponse(w, res); err != nil {
+
+		if err := codec.Respond(c, res); err != nil {
 			// this probably won't ever go through, but might as well try
 			http.Error(w, err.Error(), 500)
 			return
@@ -50,22 +65,6 @@ const (
 	contextKeyRequest contextKey = iota
 	contextKeyResponseWriter
 )
-
-type wrapper struct {
-	lrpc.Call
-	ctx context.Context
-}
-
-func (w wrapper) GetContext() context.Context {
-	return w.ctx
-}
-
-func wrapCall(w http.ResponseWriter, r *http.Request, c lrpc.Call) lrpc.Call {
-	ctx := c.GetContext()
-	ctx = context.WithValue(ctx, contextKeyRequest, r)
-	ctx = context.WithValue(ctx, contextKeyResponseWriter, w)
-	return wrapper{c, ctx}
-}
 
 // ContextRequest takes in a Context from a Call generated from HTTPHandler and
 // returns the original *http.Request object for the Call

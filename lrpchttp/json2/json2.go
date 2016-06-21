@@ -4,10 +4,10 @@ package json2
 
 import (
 	"encoding/json"
-	"io"
 	"net/http"
 
 	"github.com/levenlabs/lrpc"
+	"github.com/levenlabs/lrpc/lrpchttp"
 
 	"golang.org/x/net/context"
 )
@@ -87,15 +87,13 @@ type Request struct {
 // Call is an implementation of the lrpc.Call interface for the JSON RPC2
 // protocol
 type Call struct {
-	W http.ResponseWriter `json:"-"`
-	R *http.Request       `json:"-"`
+	ctx context.Context
 	Request
 }
 
 // GetContext implements the Call interface
 func (c *Call) GetContext() context.Context {
-	// TODO use the http.Request's context when 1.7 is stable
-	return context.Background()
+	return c.ctx
 }
 
 // GetMethod implements the Call interface
@@ -108,8 +106,26 @@ func (c *Call) UnmarshalArgs(i interface{}) error {
 	return json.Unmarshal(*c.Params, i)
 }
 
-// MarshalResponse implements the Call interface
-func (c *Call) MarshalResponse(w io.Writer, i interface{}) error {
+// Codec implements the lrpchttp.Codec interface
+//
+//	httpHandler := lrpchttp.HTTPHandler(json2.Codec{}, h)
+//
+type Codec struct{}
+
+// NewCall implements the lrpchttp.Codec interface
+func (Codec) NewCall(ctx context.Context, w http.ResponseWriter, r *http.Request) (lrpc.Call, error) {
+	c := &Call{ctx: ctx}
+	if err := json.NewDecoder(r.Body).Decode(&c); err != nil {
+		return nil, err
+	}
+	return c, nil
+}
+
+// Respond implements the lrpchttp.Codec interface
+func (Codec) Respond(cc lrpc.Call, i interface{}) error {
+	w := lrpchttp.ContextResponseWriter(cc.GetContext())
+	c := cc.(*Call)
+
 	var res Response
 	if err, ok := i.(error); ok {
 		jerr, ok := i.(*Error)
@@ -123,21 +139,6 @@ func (c *Call) MarshalResponse(w io.Writer, i interface{}) error {
 	res.Version = "2.0"
 	res.ID = c.ID
 
-	c.W.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	return json.NewEncoder(w).Encode(&res)
-}
-
-// Codec implements the lrpchttp.Codec interface
-//
-//	httpHandler := lrpchttp.HTTPHandler(json2.Codec{}, h)
-//
-type Codec struct{}
-
-// NewCall implements the lrpchttp.Codec interface
-func (Codec) NewCall(w http.ResponseWriter, r *http.Request) (lrpc.Call, error) {
-	c := &Call{W: w, R: r}
-	if err := json.NewDecoder(r.Body).Decode(&c); err != nil {
-		return nil, err
-	}
-	return c, nil
 }

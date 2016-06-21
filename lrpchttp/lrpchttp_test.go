@@ -3,7 +3,6 @@ package lrpchttp
 import (
 	"bytes"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -22,16 +21,23 @@ import (
 // supports responses which are strings.
 type testCodec struct{}
 
-func (testCodec) NewCall(w http.ResponseWriter, r *http.Request) (lrpc.Call, error) {
-	return testCodecCall{r}, nil
+func (testCodec) NewCall(ctx context.Context, w http.ResponseWriter, r *http.Request) (lrpc.Call, error) {
+	return testCodecCall{ctx, r}, nil
+}
+
+func (testCodec) Respond(c lrpc.Call, res interface{}) error {
+	w := ContextResponseWriter(c.GetContext())
+	_, err := fmt.Fprint(w, res.(string))
+	return err
 }
 
 type testCodecCall struct {
-	r *http.Request
+	ctx context.Context
+	r   *http.Request
 }
 
 func (tcc testCodecCall) GetContext() context.Context {
-	return context.Background()
+	return tcc.ctx
 }
 
 func (tcc testCodecCall) GetMethod() string {
@@ -42,11 +48,6 @@ func (tcc testCodecCall) UnmarshalArgs(i interface{}) error {
 	bodyB, _ := ioutil.ReadAll(tcc.r.Body)
 	body := string(bodyB)
 	reflect.Indirect(reflect.ValueOf(i)).Set(reflect.ValueOf(body))
-	return nil
-}
-
-func (tcc testCodecCall) MarshalResponse(w io.Writer, i interface{}) error {
-	fmt.Fprint(w, i.(string))
 	return nil
 }
 
