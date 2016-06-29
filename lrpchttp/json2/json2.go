@@ -115,7 +115,7 @@ type Codec struct{}
 // NewCall implements the lrpchttp.Codec interface
 func (Codec) NewCall(ctx context.Context, w http.ResponseWriter, r *http.Request) (lrpc.Call, error) {
 	c := &Call{ctx: ctx}
-	if err := json.NewDecoder(r.Body).Decode(&c); err != nil {
+	if err := json.NewDecoder(r.Body).Decode(c); err != nil {
 		return nil, err
 	}
 	return c, nil

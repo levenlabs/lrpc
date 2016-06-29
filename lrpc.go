@@ -11,9 +11,6 @@ import (
 	"golang.org/x/net/context"
 )
 
-// TODO the documentation in here really doesn't need to mention codecs. Might
-// not even need to mention transports
-
 // Errors applicable to rpc calling/handling
 var (
 	ErrMethodNotFound = errors.New("method not found")
@@ -23,8 +20,8 @@ var (
 type Call interface {
 	// GetContext returns a context object for the rpc call. The context may
 	// already have a deadline set on it, or other key/value information,
-	// depending on the underlying transport/codec. The same Call instance
-	// should always return the same Context.
+	// depending on the underlying implementation. The same Call instance should
+	// always return the same Context.
 	GetContext() context.Context
 
 	// GetMethod returns the name of the method being called. The same Call
@@ -32,8 +29,8 @@ type Call interface {
 	GetMethod() string
 
 	// UnmarshalArgs takes in an interface pointer and unmarshals the Call's
-	// arguments into it using the underlying codec. This should only be called
-	// once on any Call instance.
+	// arguments to the call into it. This should only be called once on any
+	// Call instance.
 	UnmarshalArgs(interface{}) error
 }
 
@@ -123,5 +120,3 @@ func (sm ServeMux) Handle(method string, h Handler) ServeMux {
 func (sm ServeMux) HandleFunc(method string, fn func(Call) interface{}) ServeMux {
 	return sm.Handle(method, HandlerFunc(fn))
 }
-
-// TODO some way of creating copies of a Call

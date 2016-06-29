@@ -69,11 +69,13 @@ const (
 // ContextRequest takes in a Context from a Call generated from HTTPHandler and
 // returns the original *http.Request object for the Call
 func ContextRequest(ctx context.Context) *http.Request {
-	return ctx.Value(contextKeyRequest).(*http.Request)
+	r, _ := ctx.Value(contextKeyRequest).(*http.Request)
+	return r
 }
 
 // ContextResponseWriter teks in a Context from a Call generated from
 // HTTPHandler and returns the original http.ResponseWriter for the Call
 func ContextResponseWriter(ctx context.Context) http.ResponseWriter {
-	return ctx.Value(contextKeyResponseWriter).(http.ResponseWriter)
+	rw, _ := ctx.Value(contextKeyResponseWriter).(http.ResponseWriter)
+	return rw
 }
