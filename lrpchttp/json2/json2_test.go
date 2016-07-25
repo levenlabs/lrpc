@@ -11,6 +11,7 @@ import (
 	. "testing"
 	"time"
 
+	"github.com/levenlabs/golib/testutil"
 	"github.com/levenlabs/lrpc"
 	"github.com/levenlabs/lrpc/lrpchttp"
 	"github.com/stretchr/testify/assert"
@@ -87,4 +88,15 @@ func TestJSON2Codec(t *T) {
 
 	res = requireJSON2Req("ContextRequest", args)
 	assert.Equal(t, `{"foo":"bar"}`, res)
+}
+
+func TestNewRequest(t *T) {
+	m := testutil.RandStr()
+	params := []string{"foo", "bar"}
+	r, err := NewRequest(m, params)
+	require.Nil(t, err)
+	assert.Equal(t, "2.0", r.Version)
+	assert.Equal(t, m, r.Method)
+	assert.Equal(t, `["foo","bar"]`, string(*(r.Params)))
+	assert.NotEmpty(t, string(*(r.ID)))
 }

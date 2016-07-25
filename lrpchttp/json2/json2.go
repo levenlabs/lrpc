@@ -3,6 +3,8 @@
 package json2
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"net/http"
 
@@ -82,6 +84,39 @@ type Request struct {
 	// Our implementation will not do type checking for id.
 	// It will be copied as it is.
 	ID *json.RawMessage `json:"id"`
+}
+
+// NewRequest encodes the method and its parameters into a new Request object,
+// which can be marshalled and sent to a JSONRPC2 endpoint.
+func NewRequest(method string, params interface{}) (Request, error) {
+	idr := make([]byte, 16)
+	if _, err := rand.Read(idr); err != nil {
+		return Request{}, err
+	}
+	id := hex.EncodeToString(idr)
+	r := Request{
+		Version: "2.0",
+		Method:  method,
+	}
+
+	{
+		b, err := json.Marshal(id)
+		if err != nil {
+			return Request{}, err
+		}
+		jr := json.RawMessage(b)
+		r.ID = &jr
+	}
+	{
+		b, err := json.Marshal(params)
+		if err != nil {
+			return Request{}, err
+		}
+		jr := json.RawMessage(b)
+		r.Params = &jr
+	}
+
+	return r, nil
 }
 
 // Call is an implementation of the lrpc.Call interface for the JSON RPC2
