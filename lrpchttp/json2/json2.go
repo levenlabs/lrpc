@@ -106,6 +106,18 @@ func (c *Call) UnmarshalArgs(i interface{}) error {
 	return json.Unmarshal(*c.Params, i)
 }
 
+type ctxKey int
+
+const ctxRequest ctxKey = 0
+
+// ContextRequest can be called on a Context returned from a Call sourced from
+// json2.Codec. It returns the Request object that the request was unmarshalled
+// into. Returns nil if the context doesn't have the Request object in it.
+func ContextRequest(ctx context.Context) *Request {
+	r, _ := ctx.Value(ctxRequest).(*Request)
+	return r
+}
+
 // Codec implements the lrpchttp.Codec interface
 //
 //	httpHandler := lrpchttp.HTTPHandler(json2.Codec{}, h)
@@ -114,10 +126,11 @@ type Codec struct{}
 
 // NewCall implements the lrpchttp.Codec interface
 func (Codec) NewCall(ctx context.Context, w http.ResponseWriter, r *http.Request) (lrpc.Call, error) {
-	c := &Call{ctx: ctx}
+	c := &Call{}
 	if err := json.NewDecoder(r.Body).Decode(c); err != nil {
 		return nil, err
 	}
+	c.ctx = context.WithValue(ctx, ctxRequest, &c.Request)
 	return c, nil
 }
 

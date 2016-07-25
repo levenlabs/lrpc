@@ -34,6 +34,10 @@ var h = lrpchttp.HTTPHandler(Codec{}, lrpc.ServeMux{}.
 	}).
 	HandleFunc("Error2", func(lrpc.Call) interface{} {
 		return err2
+	}).
+	HandleFunc("ContextRequest", func(c lrpc.Call) interface{} {
+		r := ContextRequest(c.GetContext())
+		return string(*r.Params)
 	}),
 )
 
@@ -80,4 +84,7 @@ func TestJSON2Codec(t *T) {
 
 	res = requireJSON2Req("Error2", args)
 	assert.Equal(t, err2, res)
+
+	res = requireJSON2Req("ContextRequest", args)
+	assert.Equal(t, `{"foo":"bar"}`, res)
 }
