@@ -10,7 +10,7 @@ import (
 
 	"github.com/levenlabs/lrpc"
 
-	"golang.org/x/net/context"
+	"context"
 )
 
 // Codec describes a type which can translate an incoming http request into an

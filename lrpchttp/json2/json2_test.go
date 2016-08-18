@@ -37,7 +37,7 @@ var h = lrpchttp.HTTPHandler(Codec{}, lrpc.ServeMux{}.
 		return err2
 	}).
 	HandleFunc("ContextRequest", func(c lrpc.Call) interface{} {
-		r := ContextRequest(c.GetContext())
+		r := ContextRequest(c.Context())
 		return string(*r.Params)
 	}),
 )

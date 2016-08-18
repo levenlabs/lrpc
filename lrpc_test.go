@@ -19,7 +19,7 @@ var echo = HandlerFunc(func(c Call) interface{} {
 		return err
 	}
 	return echoRes{
-		Method: c.GetMethod(),
+		Method: c.Method(),
 		Args:   in,
 	}
 })
@@ -30,7 +30,7 @@ var mux = ServeMux{
 
 func TestDirectCall(t *T) {
 	assertEcho := func(args interface{}) {
-		dc := DirectCall{Method: "Echo", Args: args}
+		dc := NewDirectCall(nil, "Echo", args)
 		res := echo.ServeRPC(dc)
 		assert.Equal(t, echoRes{Method: "Echo", Args: args}, res)
 	}
@@ -45,24 +45,9 @@ func TestDirectCall(t *T) {
 }
 
 func TestServeMux(t *T) {
-	dc := DirectCall{Method: "Echo", Args: true}
+	dc := NewDirectCall(nil, "Echo", true)
 	assert.Equal(t, echoRes{Method: "Echo", Args: true}, mux.ServeRPC(dc))
-	dc.Method = "wat"
+
+	dc = NewDirectCall(nil, "wat", false)
 	assert.Equal(t, ErrMethodNotFound, mux.ServeRPC(dc))
 }
-
-// Test that rpc works over HTTP
-//func TestHTTPRPC(t *T) {
-//	httpHandler := HTTPHandler(JSONrpc2Codec{}, mux)
-//
-//	body := bytes.NewBufferString(`{"method":"Echo","params":{"hello":"world"}} `)
-//	r, err := http.NewRequest("GET", "/", body)
-//	require.Nil(t, err)
-//	w := httptest.NewRecorder()
-//
-//	httpHandler.ServeHTTP(w, r)
-//	var res JSONrpc2Response
-//	res.Result = &json.RawMessage{}
-//	require.Nil(t, json.NewDecoder(w.Body).Decode(&res))
-//	assert.Equal(t, `{"hello":"world"}`, string(*(res.Result.(*json.RawMessage))))
-//}

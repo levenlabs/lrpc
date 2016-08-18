@@ -9,7 +9,7 @@ import (
 	"reflect"
 	. "testing"
 
-	"golang.org/x/net/context"
+	"context"
 
 	"github.com/levenlabs/lrpc"
 	"github.com/stretchr/testify/assert"
@@ -26,7 +26,7 @@ func (testCodec) NewCall(ctx context.Context, w http.ResponseWriter, r *http.Req
 }
 
 func (testCodec) Respond(c lrpc.Call, res interface{}) error {
-	w := ContextResponseWriter(c.GetContext())
+	w := ContextResponseWriter(c.Context())
 	_, err := fmt.Fprint(w, res.(string))
 	return err
 }
@@ -36,11 +36,11 @@ type testCodecCall struct {
 	r   *http.Request
 }
 
-func (tcc testCodecCall) GetContext() context.Context {
+func (tcc testCodecCall) Context() context.Context {
 	return tcc.ctx
 }
 
-func (tcc testCodecCall) GetMethod() string {
+func (tcc testCodecCall) Method() string {
 	return tcc.r.URL.Path[1:]
 }
 
@@ -55,13 +55,13 @@ func TestHTTPHandler(t *T) {
 	wCh := make(chan http.ResponseWriter, 1)
 	rCh := make(chan *http.Request, 1)
 	h := HTTPHandler(testCodec{}, lrpc.HandlerFunc(func(c lrpc.Call) interface{} {
-		wCh <- ContextResponseWriter(c.GetContext())
-		rCh <- ContextRequest(c.GetContext())
+		wCh <- ContextResponseWriter(c.Context())
+		rCh <- ContextRequest(c.Context())
 		var s string
 		if err := c.UnmarshalArgs(&s); err != nil {
 			return err
 		}
-		return c.GetMethod() + ":" + s
+		return c.Method() + ":" + s
 	}))
 
 	r, err := http.NewRequest("GET", "/foo", bytes.NewBufferString("bar"))

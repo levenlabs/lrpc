@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"reflect"
 
-	"golang.org/x/net/context"
+	"context"
 )
 
 // Errors applicable to rpc calling/handling
@@ -18,15 +18,15 @@ var (
 
 // Call represents an rpc call currently being processed.
 type Call interface {
-	// GetContext returns a context object for the rpc call. The context may
+	// Context returns a context object for the rpc call. The context may
 	// already have a deadline set on it, or other key/value information,
 	// depending on the underlying implementation. The same Call instance should
 	// always return the same Context.
-	GetContext() context.Context
+	Context() context.Context
 
-	// GetMethod returns the name of the method being called. The same Call
+	// Method returns the name of the method being called. The same Call
 	// instance should always return the same method name.
-	GetMethod() string
+	Method() string
 
 	// UnmarshalArgs takes in an interface pointer and unmarshals the Call's
 	// arguments to the call into it. This should only be called once on any
@@ -53,32 +53,40 @@ func (hf HandlerFunc) ServeRPC(c Call) interface{} {
 // DirectCall implements the Call interface, and can be used to call a Handler
 // directly
 //
-//	res := existingHandler.ServeRPC(lrpc.DirectCall{
-//		Method: "Method.Name",
-//		Args: map[string]string{"foo":"bar"},
-//	})
+//	res := existingHandler.ServeRPC(lrpc.NewDirectCall(
+//		context.WithTimeout(context.Background(), 5 * time.Second),
+//		"Method.Name",
+//		map[string]string{"foo":"bar"},
+//	))
 //
 type DirectCall struct {
-	Context context.Context
-	Method  string
-
-	// Args must be a pointer or reference type
-	Args interface{}
+	ctx    context.Context
+	method string
+	args   interface{}
 }
 
-// GetContext implements the Call interface. Returns context.Background() if one
-// isn't set in the struct.
-func (dc DirectCall) GetContext() context.Context {
-	if dc.Context == nil {
+// NewDirectCall returns an initialized DirectCall which can be used as an
+// lrpc.Call. If ctx is nil then context.Background() will be used. args must be
+// a pointer or reference type
+func NewDirectCall(ctx context.Context, method string, args interface{}) DirectCall {
+	return DirectCall{
+		ctx:    ctx,
+		method: method,
+		args:   args,
+	}
+}
+
+// Context implements the Call interface
+func (dc DirectCall) Context() context.Context {
+	if dc.ctx == nil {
 		return context.Background()
 	}
-	return dc.Context
+	return dc.ctx
 }
 
-// GetMethod implements the Call interface. Returns the Method field of the
-// struct directly
-func (dc DirectCall) GetMethod() string {
-	return dc.Method
+// Method implements the Call interface
+func (dc DirectCall) Method() string {
+	return dc.method
 }
 
 // UnmarshalArgs implements the Call interface. It sets the value of the pointer
@@ -86,7 +94,7 @@ func (dc DirectCall) GetMethod() string {
 // copying it into the pointer. The type of the Args field must be assignable to
 // the passed in type.
 func (dc DirectCall) UnmarshalArgs(i interface{}) error {
-	thisV := reflect.ValueOf(dc.Args)
+	thisV := reflect.ValueOf(dc.args)
 	iV := reflect.Indirect(reflect.ValueOf(i))
 	if !iV.CanSet() {
 		return fmt.Errorf("type isn't setable: %T", i)
@@ -102,7 +110,7 @@ type ServeMux map[string]Handler
 
 // ServeRPC implements the Handler interface. See the ServeMux type's docstring
 func (sm ServeMux) ServeRPC(c Call) interface{} {
-	if h, ok := sm[c.GetMethod()]; ok {
+	if h, ok := sm[c.Method()]; ok {
 		return h.ServeRPC(c)
 	}
 	return ErrMethodNotFound

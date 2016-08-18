@@ -11,7 +11,7 @@ import (
 	"github.com/levenlabs/lrpc"
 	"github.com/levenlabs/lrpc/lrpchttp"
 
-	"golang.org/x/net/context"
+	"context"
 )
 
 // ErrCode is an integer used to identify errors over JSON RPC2
@@ -126,11 +126,11 @@ type call struct {
 	req Request
 }
 
-func (c call) GetContext() context.Context {
+func (c call) Context() context.Context {
 	return c.ctx
 }
 
-func (c call) GetMethod() string {
+func (c call) Method() string {
 	return c.req.Method
 }
 
@@ -169,7 +169,7 @@ func (Codec) NewCall(ctx context.Context, w http.ResponseWriter, r *http.Request
 
 // Respond implements the lrpchttp.Codec interface
 func (Codec) Respond(cc lrpc.Call, i interface{}) error {
-	w := lrpchttp.ContextResponseWriter(cc.GetContext())
+	w := lrpchttp.ContextResponseWriter(cc.Context())
 	c := cc.(call)
 
 	var res Response
