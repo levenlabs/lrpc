@@ -14,30 +14,30 @@ import (
 	"golang.org/x/net/context"
 )
 
-// ErrorCode is an integer used to identify errors over JSON RPC2
-type ErrorCode int
+// ErrCode is an integer used to identify errors over JSON RPC2
+type ErrCode int
 
 const (
 	// ErrParse is used when invalid JSON was received by the server
-	ErrParse ErrorCode = -32700
+	ErrParse ErrCode = -32700
 	// ErrInvalidRequest is used when the JSON sent is not a valid Request
 	// object
-	ErrInvalidRequest ErrorCode = -32600
+	ErrInvalidRequest ErrCode = -32600
 	// ErrNoMethod is used when the method does not exist / is not available
-	ErrNoMethod ErrorCode = -32601
+	ErrNoMethod ErrCode = -32601
 	// ErrInvalidParams is used when invalid method parameters were sent
-	ErrInvalidParams ErrorCode = -32602
+	ErrInvalidParams ErrCode = -32602
 	// ErrInternal is used when  an internal JSON-rpc error is encountered
-	ErrInternal ErrorCode = -32603
+	ErrInternal ErrCode = -32603
 	// ErrServer is reserved for implementation-defined server-errors
-	ErrServer ErrorCode = -32000
+	ErrServer ErrCode = -32000
 )
 
 // Error is an error implementation which contains additional information used
 // by JSON RPC2
 type Error struct {
 	// Required. A Number that indicates the error type that occurred.
-	Code ErrorCode `json:"code"`
+	Code ErrCode `json:"code"`
 
 	// Required. A string providing a short description of the error. The
 	// message SHOULD be limited to a concise single sentence.
@@ -119,35 +119,33 @@ func NewRequest(method string, params interface{}) (Request, error) {
 	return r, nil
 }
 
-// Call is an implementation of the lrpc.Call interface for the JSON RPC2
+// call is an implementation of the lrpc.Call interface for the JSON RPC2
 // protocol
-type Call struct {
+type call struct {
 	ctx context.Context
-	Request
+	req Request
 }
 
-// GetContext implements the Call interface
-func (c *Call) GetContext() context.Context {
+func (c call) GetContext() context.Context {
 	return c.ctx
 }
 
-// GetMethod implements the Call interface
-func (c *Call) GetMethod() string {
-	return c.Method
+func (c call) GetMethod() string {
+	return c.req.Method
 }
 
-// UnmarshalArgs implements the Call interface
-func (c *Call) UnmarshalArgs(i interface{}) error {
-	return json.Unmarshal(*c.Params, i)
+func (c call) UnmarshalArgs(i interface{}) error {
+	return json.Unmarshal(*c.req.Params, i)
 }
 
 type ctxKey int
 
 const ctxRequest ctxKey = 0
 
-// ContextRequest can be called on a Context returned from a Call sourced from
-// json2.Codec. It returns the Request object that the request was unmarshalled
-// into. Returns nil if the context doesn't have the Request object in it.
+// ContextRequest can be called on a Context returned from an lrcp.Call sourced
+// from json2.Codec. It returns the Request object that the request was
+// unmarshalled into. Returns nil if the context doesn't have the Request object
+// in it.
 func ContextRequest(ctx context.Context) *Request {
 	r, _ := ctx.Value(ctxRequest).(*Request)
 	return r
@@ -161,18 +159,18 @@ type Codec struct{}
 
 // NewCall implements the lrpchttp.Codec interface
 func (Codec) NewCall(ctx context.Context, w http.ResponseWriter, r *http.Request) (lrpc.Call, error) {
-	c := &Call{}
-	if err := json.NewDecoder(r.Body).Decode(c); err != nil {
+	c := call{}
+	if err := json.NewDecoder(r.Body).Decode(&c.req); err != nil {
 		return nil, err
 	}
-	c.ctx = context.WithValue(ctx, ctxRequest, &c.Request)
+	c.ctx = context.WithValue(ctx, ctxRequest, &c.req)
 	return c, nil
 }
 
 // Respond implements the lrpchttp.Codec interface
 func (Codec) Respond(cc lrpc.Call, i interface{}) error {
 	w := lrpchttp.ContextResponseWriter(cc.GetContext())
-	c := cc.(*Call)
+	c := cc.(call)
 
 	var res Response
 	if err, ok := i.(error); ok {
@@ -185,7 +183,7 @@ func (Codec) Respond(cc lrpc.Call, i interface{}) error {
 		res.Result = i
 	}
 	res.Version = "2.0"
-	res.ID = c.ID
+	res.ID = c.req.ID
 
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	return json.NewEncoder(w).Encode(&res)

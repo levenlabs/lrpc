@@ -38,8 +38,7 @@ type Codec interface {
 // as a 400
 func HTTPHandler(codec Codec, h lrpc.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// TODO use request's context once 1.7 is stable
-		ctx := context.Background()
+		ctx := r.Context()
 		ctx = context.WithValue(ctx, contextKeyRequest, r)
 		ctx = context.WithValue(ctx, contextKeyResponseWriter, w)
 
