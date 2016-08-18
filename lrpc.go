@@ -1,6 +1,50 @@
 // Package lrpc is an alternative to the standard rpc paradigm used by go
 // projects. It's better than normal rpc, because it allows for saner chaining
 // of rpc handlers in a similar way to how http.Handler can be chained.
+//
+// Creating a handler
+//
+// lrpc.Handlers are created much the same way as http.Handlers. Their signature
+// is different though. They take in a Call and return a result based on it.
+// Inside the lrpc.Handler UnmarshalArgs can be used to actually retrieve the
+// arguments, and Method can be used to get the method name.
+//
+// This Handler echos back its argument map with the method added as a field.
+// Following that a DirectCall is used to hit the Handler:
+//
+//	h := lrpc.HandlerFunc(func(c lrpc.Call) interface{} {
+//		m := map[string]string{}
+//		if err := c.UnmarshalArgs(m); err != nil {
+//			return err
+//		}
+//
+//		m["method"] = c.Method()
+//		return m
+//	})
+//
+//	dc := lrpc.NewDirectCall(nil, "mymethod", map[string]string{"foo": "bar"})
+//	fmt.Println(h.ServeRPC(dc))
+//
+// ServeMux
+//
+// The ServeMux can be used to multiplex Calls by their method name. It can be
+// initialized like a normal map:
+//
+//	mux := lrpc.ServeMux{
+//		"foo": fooHandler,
+//		"bar": barHandler,
+//	}
+//
+// It can also be initialized using the Handle method
+//
+//	mux := new(lrpc.ServeMux)
+//	mux.Handle("foo", fooHandler)
+//	mux.Handle("bar", barHandler)
+//
+// Handle can also be chained:
+//
+//	mux := new(lrpc.ServeMux).Handle("foo", fooHandler).Handle("bar", barHandler)
+//
 package lrpc
 
 import (
