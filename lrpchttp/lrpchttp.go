@@ -3,6 +3,17 @@
 //
 // This is done through the use of codecs, which are essentially interfaces
 // implementing the protocol over which data is transferred over http.
+//
+// Here is an example using the json2 Codec:
+//
+//	// This handler always returns 1. Cause that's useful
+//	rpcHandler := lrpc.HandlerFunc(func(c lrpc.Call) interface{} {
+//		return 1
+//	})
+//
+//	httpHandler := lrpchttp.HTTPHandler(json2.Codec{}, rpcHandler)
+//	http.ListenAndServe(":8080", httpHandler)
+//
 package lrpchttp
 
 import (

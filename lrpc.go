@@ -45,6 +45,39 @@
 //
 //	mux := new(lrpc.ServeMux).Handle("foo", fooHandler).Handle("bar", barHandler)
 //
+// Middleware
+//
+// Writing middleware for lrpc paths looks much the same as writing it for
+// http.Handlers. For example, here's a Handler which wraps another Handler. It
+// calls a validation function on arguments after they are Unmarshal'd and
+// errors out if validation fails:
+//
+//	type validatorHandler struct {
+//		validate func(interface{}) error
+//		lrpc.Call
+//	}
+//
+//	func (vh validatorHandler) UnmarshalArgs(i interface{}) error {
+//		if err := vh.Call.UnmarshalArgs(i); err != nil {
+//			return err
+//		} else if err := vh.validate(i); err != nil {
+//			return err
+//		}
+//		return nil
+//	}
+//
+//	// Validate returns an lrpc.Handler which wraps the given one and ensures
+//	// that all arguments are validated by the given function when UnmarshalArgs
+//	// is called
+//	func Validate(h lrpc.Handler, fn func(interface{}) error) lrpc.Handler {
+//		return lrpc.HandlerFunc(func(c lrpc.Call) {
+//			h.ServeRPC(validatorHandler{
+//				validate: fn,
+//				Call: c,
+//			})
+//		})
+//	}
+//
 package lrpc
 
 import (
